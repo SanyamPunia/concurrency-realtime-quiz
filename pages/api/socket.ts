@@ -36,26 +36,25 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
       let userUsername = "";
 
       socket.on("setUsername", (username: string) => {
+        console.log(`Username set: ${username}`); // Debug log
         userUsername = username;
-        let user = users.find((u) => u.username === username);
-
-        if (!user) {
-          user = { username, score: 0, currentQuestion: globalQuestionNumber };
-          users.push(user);
+        const existingUser = users.find((u) => u.username === username);
+        if (!existingUser) {
+          users.push({ username, score: 0, currentQuestion: 0 });
         }
-
         if (!currentProblem) {
           currentProblem = generateProblem(globalQuestionNumber);
         }
+        const user = users.find((u) => u.username === username);
 
+        console.log("Current Problem:", currentProblem); // Debug log
         socket.emit("newProblem", {
           problem: currentProblem,
-          questionNumber: globalQuestionNumber,
+          questionNumber: user ? user.currentQuestion : 0,
         });
-
         io.emit(
           "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user) // eslint-disable-line @typescript-eslint/no-unused-vars
+          users.map(({ currentQuestion, ...user }) => user)
         );
       });
 
