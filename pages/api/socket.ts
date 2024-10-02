@@ -24,7 +24,7 @@ const TOTAL_QUESTIONS = 10;
 const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
   if (!res.socket.server.io) {
     console.log("New Socket.io server...");
-    const httpServer: NetServer = res.socket.server as any; // Ignore TypeScript error
+    const httpServer = res.socket.server as unknown as NetServer;
     const io = new ServerIO(httpServer, { path: "/api/socket" });
     res.socket.server.io = io;
 
@@ -49,10 +49,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           problem: currentProblem,
           questionNumber: user ? user.currentQuestion : 0,
         });
-        io.emit(
-          "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user)
-        );
+        io.emit("updateUsers", users);
       });
 
       socket.on("submitAnswer", ({ username, answer }) => {
@@ -91,10 +88,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         }
 
         users.sort((a, b) => b.score - a.score);
-        io.emit(
-          "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user)
-        );
+        io.emit("updateUsers", users);
       });
 
       socket.on("startNewQuiz", () => {
@@ -109,10 +103,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           problem: currentProblem,
           questionNumber: globalQuestionNumber,
         });
-        io.emit(
-          "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user)
-        );
+        io.emit("updateUsers", users);
       });
 
       socket.on("disconnect", () => {
@@ -121,10 +112,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         if (index !== -1) {
           users.splice(index, 1);
         }
-        io.emit(
-          "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user)
-        );
+        io.emit("updateUsers", users);
       });
     });
   }
