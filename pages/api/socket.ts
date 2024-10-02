@@ -19,16 +19,13 @@ const users: ExtendedUser[] = [];
 
 let currentProblem: Problem | null = null;
 let globalQuestionNumber = 0;
-
 const TOTAL_QUESTIONS = 10;
 
 const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
   if (!res.socket.server.io) {
     console.log("New Socket.io server...");
-    const httpServer: NetServer = res.socket.server as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-    const io = new ServerIO(httpServer, {
-      path: "/api/socket",
-    });
+    const httpServer: NetServer = res.socket.server as any; // Ignore TypeScript error
+    const io = new ServerIO(httpServer, { path: "/api/socket" });
     res.socket.server.io = io;
 
     io.on("connection", (socket) => {
@@ -42,12 +39,12 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         if (!existingUser) {
           users.push({ username, score: 0, currentQuestion: 0 });
         }
+
         if (!currentProblem) {
           currentProblem = generateProblem(globalQuestionNumber);
         }
-        const user = users.find((u) => u.username === username);
 
-        console.log("Current Problem:", currentProblem); // Debug log
+        const user = users.find((u) => u.username === username);
         socket.emit("newProblem", {
           problem: currentProblem,
           questionNumber: user ? user.currentQuestion : 0,
@@ -67,11 +64,8 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         const userIndex = users.findIndex((u) => u.username === username);
         if (userIndex === -1) return;
 
-        // const user = users[userIndex]; // eslint-disable-line @typescript-eslint/no-unused-vars
-
         if (answer === currentProblem?.answer) {
           users[userIndex].score++;
-
           globalQuestionNumber++;
 
           if (globalQuestionNumber >= TOTAL_QUESTIONS) {
@@ -80,8 +74,6 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           }
 
           currentProblem = generateProblem(globalQuestionNumber);
-
-          // update the current question for all users to stay in sync
           users.forEach((u) => {
             u.currentQuestion = globalQuestionNumber;
           });
@@ -92,7 +84,6 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           });
         } else {
           socket.emit("errorMessage", "Incorrect answer. Try again!");
-
           socket.emit("newProblem", {
             problem: currentProblem,
             questionNumber: globalQuestionNumber,
@@ -102,7 +93,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         users.sort((a, b) => b.score - a.score);
         io.emit(
           "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user) // eslint-disable-line @typescript-eslint/no-unused-vars
+          users.map(({ currentQuestion, ...user }) => user)
         );
       });
 
@@ -112,17 +103,27 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           user.currentQuestion = 0;
         });
         globalQuestionNumber = 0;
-
         currentProblem = generateProblem(globalQuestionNumber);
 
         io.emit("newProblem", {
           problem: currentProblem,
           questionNumber: globalQuestionNumber,
         });
-
         io.emit(
           "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user) // eslint-disable-line @typescript-eslint/no-unused-vars
+          users.map(({ currentQuestion, ...user }) => user)
+        );
+      });
+
+      socket.on("disconnect", () => {
+        console.log(`User disconnected: ${userUsername}`);
+        const index = users.findIndex((u) => u.username === userUsername);
+        if (index !== -1) {
+          users.splice(index, 1);
+        }
+        io.emit(
+          "updateUsers",
+          users.map(({ currentQuestion, ...user }) => user)
         );
       });
     });
