@@ -23,7 +23,7 @@ const TOTAL_QUESTIONS = 10;
 const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
   if (!res.socket.server.io) {
     console.log("New Socket.io server...");
-    const httpServer = res.socket.server as unknown as NetServer;
+    const httpServer = res.socket.server as unknown as NetServer; 
     const io = new ServerIO(httpServer, { path: "/api/socket" });
     res.socket.server.io = io;
 
@@ -39,10 +39,9 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           users.push({ username, score: 0, currentQuestion: 0 });
         }
 
-        // Generate the first problem if it doesn't exist
         if (!currentProblem) {
           currentProblem = generateProblem(globalQuestionNumber);
-          console.log("Generated problem:", currentProblem); // Debug log
+          console.log("Generated problem:", currentProblem); 
         }
 
         const user = users.find((u) => u.username === username);
@@ -71,15 +70,13 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
             return;
           }
 
-          // Generate the next problem
           currentProblem = generateProblem(globalQuestionNumber);
-          console.log("New problem generated:", currentProblem); // Debug log
+          console.log("New problem generated:", currentProblem);
 
           users.forEach((u) => {
-            u.currentQuestion = globalQuestionNumber; // Update current question for all users
+            u.currentQuestion = globalQuestionNumber;
           });
 
-          // Emit the new problem to all users
           io.emit("newProblem", {
             problem: currentProblem,
             questionNumber: globalQuestionNumber,
@@ -104,7 +101,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         globalQuestionNumber = 0;
 
         currentProblem = generateProblem(globalQuestionNumber);
-        console.log("Starting new quiz with problem:", currentProblem); // Debug log
+        console.log("Starting new quiz with problem:", currentProblem);
 
         io.emit("newProblem", {
           problem: currentProblem,
