@@ -16,7 +16,6 @@ interface ExtendedUser extends User {
 }
 
 const users: ExtendedUser[] = [];
-
 let currentProblem: Problem | null = null;
 let globalQuestionNumber = 0;
 const TOTAL_QUESTIONS = 10;
@@ -40,8 +39,10 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           users.push({ username, score: 0, currentQuestion: 0 });
         }
 
+        // Generate the first problem if it doesn't exist
         if (!currentProblem) {
           currentProblem = generateProblem(globalQuestionNumber);
+          console.log("Generated problem:", currentProblem); // Debug log
         }
 
         const user = users.find((u) => u.username === username);
@@ -70,11 +71,15 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
             return;
           }
 
+          // Generate the next problem
           currentProblem = generateProblem(globalQuestionNumber);
+          console.log("New problem generated:", currentProblem); // Debug log
+
           users.forEach((u) => {
-            u.currentQuestion = globalQuestionNumber;
+            u.currentQuestion = globalQuestionNumber; // Update current question for all users
           });
 
+          // Emit the new problem to all users
           io.emit("newProblem", {
             problem: currentProblem,
             questionNumber: globalQuestionNumber,
@@ -97,7 +102,9 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
           user.currentQuestion = 0;
         });
         globalQuestionNumber = 0;
+
         currentProblem = generateProblem(globalQuestionNumber);
+        console.log("Starting new quiz with problem:", currentProblem); // Debug log
 
         io.emit("newProblem", {
           problem: currentProblem,
