@@ -25,7 +25,7 @@ const TOTAL_QUESTIONS = 10;
 const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
   if (!res.socket.server.io) {
     console.log("New Socket.io server...");
-    const httpServer: NetServer = res.socket.server as any;
+    const httpServer: NetServer = res.socket.server as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     const io = new ServerIO(httpServer, {
       path: "/api/socket",
     });
@@ -55,7 +55,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
 
         io.emit(
           "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user)
+          users.map(({ currentQuestion, ...user }) => user) // eslint-disable-line @typescript-eslint/no-unused-vars
         );
       });
 
@@ -68,7 +68,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         const userIndex = users.findIndex((u) => u.username === username);
         if (userIndex === -1) return;
 
-        const user = users[userIndex];
+        // const user = users[userIndex]; // eslint-disable-line @typescript-eslint/no-unused-vars
 
         if (answer === currentProblem?.answer) {
           users[userIndex].score++;
@@ -103,7 +103,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
         users.sort((a, b) => b.score - a.score);
         io.emit(
           "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user)
+          users.map(({ currentQuestion, ...user }) => user) // eslint-disable-line @typescript-eslint/no-unused-vars
         );
       });
 
@@ -123,7 +123,7 @@ const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
 
         io.emit(
           "updateUsers",
-          users.map(({ currentQuestion, ...user }) => user)
+          users.map(({ currentQuestion, ...user }) => user) // eslint-disable-line @typescript-eslint/no-unused-vars
         );
       });
     });
