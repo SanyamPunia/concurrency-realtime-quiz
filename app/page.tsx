@@ -1,101 +1,137 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { io, Socket } from "socket.io-client";
+import QuizDisplay from "@/components/QuizDisplay";
+import LeaderBoard from "@/components/LeaderBoard";
+import { Problem, User } from "@/types";
+
+const TOTAL_QUESTIONS = 10;
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [username, setUsername] = useState("");
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [quizEnded, setQuizEnded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isUsernameSubmitted, setIsUsernameSubmitted] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const newSocket = io("", {
+      path: "/api/socket",
+    });
+    setSocket(newSocket);
+
+    newSocket.on(
+      "newProblem",
+      (data: { problem: Problem; questionNumber: number }) => {
+        console.log("New problem received:", data);
+        setProblem(data.problem);
+        setCurrentQuestion(data.questionNumber);
+        setError(null);
+      }
+    );
+
+    newSocket.on("updateUsers", (updatedUsers: User[]) => {
+      console.log("Users updated:", updatedUsers);
+      setUsers(updatedUsers);
+    });
+
+    newSocket.on("quizEnded", () => {
+      setQuizEnded(true);
+    });
+
+    newSocket.on("errorMessage", (message: string) => {
+      setError(message);
+    });
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
+
+  const handleSubmitUsername = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username.trim()) {
+      setIsUsernameSubmitted(true);
+      if (socket) {
+        socket.emit("setUsername", username);
+      }
+    } else {
+      setError("Please enter a username");
+      setTimeout(() => {
+        setError("");
+      }, 3000);
+    }
+  };
+
+  const handleSubmitAnswer = (answer: number) => {
+    if (socket) {
+      socket.emit("submitAnswer", { username, answer });
+    }
+  };
+
+  const startNewQuiz = () => {
+    if (socket) {
+      socket.emit("startNewQuiz");
+      setQuizEnded(false);
+      setCurrentQuestion(0);
+      setIsUsernameSubmitted(false);
+      setUsername("");
+    }
+  };
+  return (
+    <main className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+      <div className="relative py-3 sm:max-w-xl sm:mx-auto">
+        <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-light-blue-500 shadow-lg transform -skew-y-6 sm:skew-y-0 sm:-rotate-6 sm:rounded-3xl"></div>
+        <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">
+            Competitive Math Quiz
+          </h1>
+          {!quizEnded ? (
+            <>
+              {!isUsernameSubmitted ? (
+                <form onSubmit={handleSubmitUsername} className="mb-4">
+                  <input
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-3 py-2 mb-2 text-gray-700 border rounded-lg focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none"
+                  >
+                    Start Quiz
+                  </button>
+                </form>
+              ) : problem ? (
+                <QuizDisplay
+                  problem={problem}
+                  onSubmit={handleSubmitAnswer}
+                  currentQuestion={currentQuestion}
+                  totalQuestions={TOTAL_QUESTIONS}
+                  error={error}
+                />
+              ) : null}
+            </>
+          ) : (
+            <>
+              <LeaderBoard users={users} />
+              <button
+                onClick={startNewQuiz}
+                className="mt-4 w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none"
+              >
+                Start New Quiz
+              </button>
+            </>
+          )}
+          {error && <p className="mt-2 text-red-500">{error}</p>}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+    </main>
   );
 }

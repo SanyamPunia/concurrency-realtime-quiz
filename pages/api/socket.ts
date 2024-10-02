@@ -1,0 +1,134 @@
+import { Server as NetServer } from "http";
+import { Server as ServerIO } from "socket.io";
+import { NextApiRequest } from "next";
+import { NextApiResponseServerIO } from "@/types";
+import { generateProblem } from "@/lib/mathProblems";
+import { Problem, User } from "@/types";
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+interface ExtendedUser extends User {
+  currentQuestion: number;
+}
+
+const users: ExtendedUser[] = [];
+
+let currentProblem: Problem | null = null;
+let globalQuestionNumber = 0;
+
+const TOTAL_QUESTIONS = 10;
+
+const SocketHandler = (req: NextApiRequest, res: NextApiResponseServerIO) => {
+  if (!res.socket.server.io) {
+    console.log("New Socket.io server...");
+    const httpServer: NetServer = res.socket.server as any;
+    const io = new ServerIO(httpServer, {
+      path: "/api/socket",
+    });
+    res.socket.server.io = io;
+
+    io.on("connection", (socket) => {
+      console.log("New client connected");
+      let userUsername = "";
+
+      socket.on("setUsername", (username: string) => {
+        userUsername = username;
+        let user = users.find((u) => u.username === username);
+
+        if (!user) {
+          user = { username, score: 0, currentQuestion: globalQuestionNumber };
+          users.push(user);
+        }
+
+        if (!currentProblem) {
+          currentProblem = generateProblem(globalQuestionNumber);
+        }
+
+        socket.emit("newProblem", {
+          problem: currentProblem,
+          questionNumber: globalQuestionNumber,
+        });
+
+        io.emit(
+          "updateUsers",
+          users.map(({ currentQuestion, ...user }) => user)
+        );
+      });
+
+      socket.on("submitAnswer", ({ username, answer }) => {
+        if (!username || username !== userUsername) {
+          socket.emit("errorMessage", "Invalid username");
+          return;
+        }
+
+        const userIndex = users.findIndex((u) => u.username === username);
+        if (userIndex === -1) return;
+
+        const user = users[userIndex];
+
+        if (answer === currentProblem?.answer) {
+          users[userIndex].score++;
+
+          globalQuestionNumber++;
+
+          if (globalQuestionNumber >= TOTAL_QUESTIONS) {
+            io.emit("quizEnded");
+            return;
+          }
+
+          currentProblem = generateProblem(globalQuestionNumber);
+
+          // update the current question for all users to stay in sync
+          users.forEach((u) => {
+            u.currentQuestion = globalQuestionNumber;
+          });
+
+          io.emit("newProblem", {
+            problem: currentProblem,
+            questionNumber: globalQuestionNumber,
+          });
+        } else {
+          socket.emit("errorMessage", "Incorrect answer. Try again!");
+
+          socket.emit("newProblem", {
+            problem: currentProblem,
+            questionNumber: globalQuestionNumber,
+          });
+        }
+
+        users.sort((a, b) => b.score - a.score);
+        io.emit(
+          "updateUsers",
+          users.map(({ currentQuestion, ...user }) => user)
+        );
+      });
+
+      socket.on("startNewQuiz", () => {
+        users.forEach((user) => {
+          user.score = 0;
+          user.currentQuestion = 0;
+        });
+        globalQuestionNumber = 0;
+
+        currentProblem = generateProblem(globalQuestionNumber);
+
+        io.emit("newProblem", {
+          problem: currentProblem,
+          questionNumber: globalQuestionNumber,
+        });
+
+        io.emit(
+          "updateUsers",
+          users.map(({ currentQuestion, ...user }) => user)
+        );
+      });
+    });
+  }
+  res.end();
+};
+
+export default SocketHandler;
